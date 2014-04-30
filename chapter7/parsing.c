@@ -30,12 +30,36 @@ void add_history(char* unused) {}
 
 /* Compute numbers of leaves in a tree */
 int count_leaves(mpc_ast_t* t) {
-  return 0;
+  /*
+  printf("Tag: %s\n", t->tag);
+  printf("Contents: %s\n", t->contents);
+  printf("Number of children: %i\n", t->children_num);
+  */
+  
+  if (t->children_num == 0) { return 1; }
+  if (t->children_num >= 1) {
+    int total = 0;
+    for (int i = 0; i < t->children_num; i++) {
+      total = total + count_leaves(t->children[i]);
+    }
+    return total;
+  }
+  return -1;
 }
 
 /* Compute number of branches in a tree */
 int count_branches(mpc_ast_t* t) {
-  return 0;
+  //printf("contents: %s\n", t->contents);
+  if (t->children_num == 0) { return 0; }
+  if (t->children_num >= 1) {
+    int total = 0;
+    if (strcmp(t->contents, "") == 0) { total = 1; }
+    for (int i = 0; i < t->children_num; i++) {
+      total = total + count_branches(t->children[i]); 
+    }
+    return total;
+  }
+  return -1;
 }
 
 /* Compute most number of children from one branch in a tree */ 
@@ -132,7 +156,10 @@ int main(int argc, char** argv) {
 
       long result = eval(r.output);
       printf("%li\n", result);
-      
+
+      printf("Leaves: %i\n", count_leaves(r.output));
+      printf("Branches: %i\n", count_branches(r.output));
+
       mpc_ast_delete(r.output);
 
     } else {
