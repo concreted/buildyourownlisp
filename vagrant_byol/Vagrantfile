@@ -8,6 +8,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.box = "hashicorp/precise32"
   
+  config.vm.network :forwarded_port, guest: 22, host: 2232, id: "ssh"
+  
+  config.vm.provider "virtualbox" do |v|
+	v.name = "buildyourownlisp"
+  end
+  
+  config.vm.provision :shell, :inline => "echo \"US/Pacific\" | sudo tee /etc/timezone && dpkg-reconfigure --frontend noninteractive tzdata"
+  
   config.vm.provision :shell, :path => "bootstrap.sh"
+  
+  config.vm.synced_folder "~/Dropbox/edu", "/edu"
 
 end
