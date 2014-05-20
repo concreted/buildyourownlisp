@@ -29,7 +29,7 @@ void add_history(char* unused) {}
 #endif
 
 /* Setup */
-enum { LVAL_NUM, LVAL_DEC, LVAL_ERR, LVAL_SYM, LVAL_SEXPR };
+enum { LVAL_INT, LVAL_DEC, LVAL_ERR, LVAL_SYM, LVAL_SEXPR };
 enum { LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM };
 
 typedef struct lval {
@@ -49,10 +49,9 @@ typedef struct lval {
 lval* lval_num(double x) {
   lval* v = malloc(sizeof(lval));
   if ((long) x == x)
-    v->type = LVAL_NUM;
+    v->type = LVAL_INT;
   else
     v->type = LVAL_DEC;
-  v->num = (long) x;
   v->dec = x;
   return v;
 }
@@ -89,7 +88,7 @@ void lval_del(lval* v) {
 
   switch (v->type) {
     /* Do nothing special for number type */
-  case LVAL_NUM: break;
+  case LVAL_INT: break;
 
     /* For Err or Sym free the string data */
   case LVAL_ERR: free(v->err); break;
@@ -167,7 +166,7 @@ void lval_expr_print(lval* v, char open, char close) {
 
 void lval_print(lval* v) {
   switch (v->type) {
-  case LVAL_NUM:   printf("%li", v->num); break;
+  case LVAL_INT:   printf("%li", (long) v->dec); break;
   case LVAL_DEC:   printf("%.2f", v->dec); break;
   case LVAL_ERR:   printf("Error: %s", v->err); break;
   case LVAL_SYM:   printf("%s", v->sym); break;
@@ -203,7 +202,7 @@ lval* lval_take(lval* v, int i) {
 lval* builtin_op(lval* a, char* op) {
   /* Ensure all arguments are numbers */
   for (int i = 0; i < a->count; i++) {
-    if (a->cell[i]->type != LVAL_NUM && a->cell[i]->type != LVAL_DEC) {
+    if (a->cell[i]->type != LVAL_INT && a->cell[i]->type != LVAL_DEC) {
       lval_del(a);
       return lval_err("Cannot operate on non-number!");
     }
@@ -215,7 +214,6 @@ lval* builtin_op(lval* a, char* op) {
   /* If no arguments and sub then perform unary negation */
   if ((strcmp(op, "-") == 0) && a->count == 0) { 
     x->dec = -x->dec; 
-    x->num = -x->num; 
   }
 
   /* While there are still elements remaining */
@@ -227,27 +225,22 @@ lval* builtin_op(lval* a, char* op) {
     /* Perform operation */
     if (strcmp(op, "+") == 0) { 
       x->dec += y->dec;
-      x->num += y->num; 
     }
     if (strcmp(op, "-") == 0) { 
       x->dec -= y->dec; 
-      x->num -= y->num; 
     }
     if (strcmp(op, "*") == 0) { 
       x->dec *= y->dec; 
-      x->num *= y->num; 
     }
     if (strcmp(op, "%") == 0) { 
       x->dec = fmod(x->dec, y->dec); 
-      x->num %= y->num; 
     }
     if (strcmp(op, "/") == 0) {
-      if (y->num == 0) {
+      if (y->dec == 0.0) {
         lval_del(x); lval_del(y);
         x = lval_err("Division By Zero!"); break;
       }
       x->dec /= y->dec;
-      x->num /= y->num;
     }
 
     /* Delete element now finished with */
@@ -257,10 +250,11 @@ lval* builtin_op(lval* a, char* op) {
   /* Delete input expression and return result */
   lval_del(a);
 
-  if (x->dec == x->num) 
-    x->type = LVAL_NUM;
+  if (x->dec == (long) x->dec) 
+    x->type = LVAL_INT;
   else
     x->type = LVAL_DEC;
+
   return x;
 }
 
