@@ -29,12 +29,13 @@ void add_history(char* unused) {}
 #endif
 
 /* Setup */
-enum { LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_SEXPR };
+enum { LVAL_NUM, LVAL_DEC, LVAL_ERR, LVAL_SYM, LVAL_SEXPR };
 enum { LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM };
 
 typedef struct lval {
   int type;
   long num; 
+  double dec;
 
   char* err;
   char* sym;
@@ -45,10 +46,14 @@ typedef struct lval {
 } lval;
 
 /* lval_num constructor */
-lval* lval_num(long x) {
+lval* lval_num(double x) {
   lval* v = malloc(sizeof(lval));
-  v->type = LVAL_NUM;
-  v->num = x;
+  if ((long) x == x)
+    v->type = LVAL_NUM;
+  else
+    v->type = LVAL_DEC;
+  v->num = (long) x;
+  v->dec = x;
   return v;
 }
 
@@ -113,7 +118,7 @@ lval* lval_add(lval* v, lval* x) {
 
 lval* lval_read_num(mpc_ast_t* t) {
   errno = 0;
-  long x = strtol(t->contents, NULL, 10);
+  double x = strtod(t->contents, NULL);
   return errno != ERANGE ? lval_num(x) : lval_err("invalid number");
 }
 
@@ -163,6 +168,7 @@ void lval_expr_print(lval* v, char open, char close) {
 void lval_print(lval* v) {
   switch (v->type) {
   case LVAL_NUM:   printf("%li", v->num); break;
+  case LVAL_DEC:   printf("%.2f", v->dec); break;
   case LVAL_ERR:   printf("Error: %s", v->err); break;
   case LVAL_SYM:   printf("%s", v->sym); break;
   case LVAL_SEXPR: lval_expr_print(v, '(', ')'); break;
@@ -195,10 +201,9 @@ lval* lval_take(lval* v, int i) {
 }
 
 lval* builtin_op(lval* a, char* op) {
-  
   /* Ensure all arguments are numbers */
   for (int i = 0; i < a->count; i++) {
-    if (a->cell[i]->type != LVAL_NUM) {
+    if (a->cell[i]->type != LVAL_NUM && a->cell[i]->type != LVAL_DEC) {
       lval_del(a);
       return lval_err("Cannot operate on non-number!");
     }
@@ -208,7 +213,10 @@ lval* builtin_op(lval* a, char* op) {
   lval* x = lval_pop(a, 0);
 
   /* If no arguments and sub then perform unary negation */
-  if ((strcmp(op, "-") == 0) && a->count == 0) { x->num = -x->num; }
+  if ((strcmp(op, "-") == 0) && a->count == 0) { 
+    x->dec = -x->dec; 
+    x->num = -x->num; 
+  }
 
   /* While there are still elements remaining */
   while (a->count > 0) {
@@ -217,14 +225,28 @@ lval* builtin_op(lval* a, char* op) {
     lval* y = lval_pop(a, 0);
 
     /* Perform operation */
-    if (strcmp(op, "+") == 0) { x->num += y->num; }
-    if (strcmp(op, "-") == 0) { x->num -= y->num; }
-    if (strcmp(op, "*") == 0) { x->num *= y->num; }
+    if (strcmp(op, "+") == 0) { 
+      x->dec += y->dec;
+      x->num += y->num; 
+    }
+    if (strcmp(op, "-") == 0) { 
+      x->dec -= y->dec; 
+      x->num -= y->num; 
+    }
+    if (strcmp(op, "*") == 0) { 
+      x->dec *= y->dec; 
+      x->num *= y->num; 
+    }
+    if (strcmp(op, "%") == 0) { 
+      x->dec = fmod(x->dec, y->dec); 
+      x->num %= y->num; 
+    }
     if (strcmp(op, "/") == 0) {
       if (y->num == 0) {
         lval_del(x); lval_del(y);
         x = lval_err("Division By Zero!"); break;
       }
+      x->dec /= y->dec;
       x->num /= y->num;
     }
 
@@ -234,6 +256,11 @@ lval* builtin_op(lval* a, char* op) {
 
   /* Delete input expression and return result */
   lval_del(a);
+
+  if (x->dec == x->num) 
+    x->type = LVAL_NUM;
+  else
+    x->type = LVAL_DEC;
   return x;
 }
 
