@@ -368,7 +368,7 @@ int main(int argc, char** argv) {
     integer  : /-?[0-9]+/ ;						\
     number   : <decimal> | <integer> ;					\
     opsymbol : '+' | '-' | '*' | '/' | '%' ;				\
-    opword   : \"add\" | \"sub\" | \"mul\" | \"div\" | \"mod\" ;	\
+    opword   : \"add\" | \"sub\" | \"mul\" | \"div\" | \"mod\" | \"list\" | \"head\" | \"tail\" | \"join\" | \"eval\" ;	\
     symbol   : <opsymbol> | <opword> ;					\
     sexpr    : '(' <expr>* ')' ;					\
     qexpr    : '{' <expr>* '}' ;					\
