@@ -34,8 +34,7 @@ enum { LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM };
 
 typedef struct lval {
   int type;
-  long num; 
-  double dec;
+  double num;
 
   char* err;
   char* sym;
@@ -52,7 +51,7 @@ lval* lval_num(double x) {
     v->type = LVAL_INT;
   else
     v->type = LVAL_DEC;
-  v->dec = x;
+  v->num = x;
   return v;
 }
 
@@ -166,8 +165,8 @@ void lval_expr_print(lval* v, char open, char close) {
 
 void lval_print(lval* v) {
   switch (v->type) {
-  case LVAL_INT:   printf("%li", (long) v->dec); break;
-  case LVAL_DEC:   printf("%.2f", v->dec); break;
+  case LVAL_INT:   printf("%li", (long) v->num); break;
+  case LVAL_DEC:   printf("%.2f", v->num); break;
   case LVAL_ERR:   printf("Error: %s", v->err); break;
   case LVAL_SYM:   printf("%s", v->sym); break;
   case LVAL_SEXPR: lval_expr_print(v, '(', ')'); break;
@@ -213,7 +212,7 @@ lval* builtin_op(lval* a, char* op) {
 
   /* If no arguments and sub then perform unary negation */
   if ((strcmp(op, "-") == 0) && a->count == 0) { 
-    x->dec = -x->dec; 
+    x->num = -x->num; 
   }
 
   /* While there are still elements remaining */
@@ -224,23 +223,23 @@ lval* builtin_op(lval* a, char* op) {
 
     /* Perform operation */
     if (strcmp(op, "+") == 0) { 
-      x->dec += y->dec;
+      x->num += y->num;
     }
     if (strcmp(op, "-") == 0) { 
-      x->dec -= y->dec; 
+      x->num -= y->num; 
     }
     if (strcmp(op, "*") == 0) { 
-      x->dec *= y->dec; 
+      x->num *= y->num; 
     }
     if (strcmp(op, "%") == 0) { 
-      x->dec = fmod(x->dec, y->dec); 
+      x->num = fmod(x->num, y->num); 
     }
     if (strcmp(op, "/") == 0) {
-      if (y->dec == 0.0) {
+      if (y->num == 0.0) {
         lval_del(x); lval_del(y);
         x = lval_err("Division By Zero!"); break;
       }
-      x->dec /= y->dec;
+      x->num /= y->num;
     }
 
     /* Delete element now finished with */
@@ -250,7 +249,7 @@ lval* builtin_op(lval* a, char* op) {
   /* Delete input expression and return result */
   lval_del(a);
 
-  if (x->dec == (long) x->dec) 
+  if (x->num == (long) x->num) 
     x->type = LVAL_INT;
   else
     x->type = LVAL_DEC;
