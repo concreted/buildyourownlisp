@@ -28,6 +28,9 @@ void add_history(char* unused) {}
 
 #endif
 
+/* Macros */
+#define LASSERT(args, cond, err) if (!(cond)) { lval_del(args); return lval_err(err); }
+
 /* Setup */
 enum { LVAL_INT, LVAL_DEC, LVAL_ERR, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR };
 enum { LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM };
@@ -207,6 +210,56 @@ lval* lval_take(lval* v, int i) {
   lval* x = lval_pop(v, i);
   lval_del(v);
   return x;
+}
+
+lval* builtin_head(lval* a) {
+  /* Check Error Conditions */
+  if (a->count != 1) {
+    lval_del(a);
+    return lval_err("Function 'head' passed too many arguments!");
+  }
+  
+  if (a->cell[0]->type != LVAL_QEXPR) {
+    lval_del(a);
+    return lval_err("Function 'head' passed incorrect types!");
+  }
+  
+  if (a->cell[0]->count == 0) {
+    lval_del(a);
+    return lval_err("Function 'head' passed {}!");
+  }
+
+  /* Otherwise take first argument */
+  lval* v = lval_take(a, 0);
+
+  /* Delete all elements that are not head and return */
+  while (v->count > 1) { lval_del(lval_pop(v, 1)); }
+  return v;
+}
+
+lval* builtin_tail(lval* a) {
+  /* Check Error Conditions */
+  if (a->count != 1) {
+    lval_del(a);
+    return lval_err("Function 'tail' passed too many arguments!");
+  }
+  
+  if (a->cell[0]->type != LVAL_QEXPR) {
+    lval_del(a);
+    return lval_err("Function 'tail' passed incorrect types!");
+  }  
+  
+  if (a->cell[0]->count == 0) {
+    lval_del(a);
+    return lval_err("Function 'tail' passed {}!");
+  }
+
+  /* Take first argument */
+  lval* v = lval_take(a, 0);
+
+  /* Delete first element and return */
+  lval_del(lval_pop(v, 0));
+  return v;
 }
 
 lval* builtin_op(lval* a, char* op) {
