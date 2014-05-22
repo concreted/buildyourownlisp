@@ -30,6 +30,8 @@ void add_history(char* unused) {}
 
 /* Macros */
 #define LASSERT(args, cond, err) if (!(cond)) { lval_del(args); return lval_err(err); }
+#define LASSERT_ARGNUM(args, argnum, err) if (args->count != argnum) { lval_del(args); return lval_err(err); }
+#define LASSERT_NONEMPTY(args, err) if (args->cell[0]->count == 0) { lval_del(args); return lval_err(err); }
 
 /* Setup */
 enum { LVAL_INT, LVAL_DEC, LVAL_ERR, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR };
@@ -215,9 +217,9 @@ lval* lval_take(lval* v, int i) {
 
 lval* builtin_head(lval* a) {
   /* Check Error Conditions */
-  LASSERT(a, (a->count == 1                 ), "Function 'head' passed too many arguments!");
+  LASSERT_ARGNUM(a, 1, "Function 'head' passed too many arguments!");
   LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'head' passed incorrect type!");
-  LASSERT(a, (a->cell[0]->count != 0        ), "Function 'head' passed {}!");
+  LASSERT_NONEMPTY(a, "Function 'head' passed {}!");
 
   /* Otherwise take first argument */
   lval* v = lval_take(a, 0);
@@ -229,9 +231,9 @@ lval* builtin_head(lval* a) {
 
 lval* builtin_tail(lval* a) {
   /* Check Error Conditions */
-  LASSERT(a, (a->count == 1                 ), "Function 'tail' passed too many arguments!");
+  LASSERT_ARGNUM(a, 1, "Function 'tail' passed too many arguments!");
   LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'tail' passed incorrect type!");
-  LASSERT(a, (a->cell[0]->count != 0        ), "Function 'tail' passed {}!");
+  LASSERT_NONEMPTY(a, "Function 'tail' passed {}!");
 
   /* Take first argument */
   lval* v = lval_take(a, 0);
@@ -247,7 +249,7 @@ lval* builtin_list(lval* a) {
 }
 
 lval* builtin_eval(lval* a) {
-  LASSERT(a, (a->count == 1                 ), "Function 'eval' passed too many arguments!");
+  LASSERT_ARGNUM(a, 1, "Function 'eval' passed too many arguments!");
   LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'eval' passed incorrect type!");
 
   lval* x = lval_take(a, 0);
