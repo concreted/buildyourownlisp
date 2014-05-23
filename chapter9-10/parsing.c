@@ -249,14 +249,10 @@ lval* builtin_cons(lval* a) {
   LASSERT(a, (a->cell[1]->type == LVAL_QEXPR), "Function 'cons' passed incorrect type!");
   LASSERT_NONEMPTY(a, 1, "Function 'cons' passed {}!");
 
-  lval* val = lval_pop(a, 0);
-  lval* qexp = lval_take(a, 0);
+  lval* result = lval_qexpr();
+  lval_add(result, lval_pop(a, 0));
 
-  lval* res = lval_qexpr();
-
-  lval_add(res, val);
-
-  return lval_join(res, qexp);
+  return lval_join(result, lval_take(a, 0));
 }
 
 lval* builtin_list(lval* a) {
