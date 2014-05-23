@@ -31,7 +31,7 @@ void add_history(char* unused) {}
 /* Macros */
 #define LASSERT(args, cond, err) if (!(cond)) { lval_del(args); return lval_err(err); }
 #define LASSERT_ARGNUM(args, argnum, err) if (args->count != argnum) { lval_del(args); return lval_err(err); }
-#define LASSERT_NONEMPTY(args, err) if (args->cell[0]->count == 0) { lval_del(args); return lval_err(err); }
+#define LASSERT_NONEMPTY(args, argnum, err) if (args->cell[argnum]->count == 0) { lval_del(args); return lval_err(err); }
 
 /* Setup */
 enum { LVAL_INT, LVAL_DEC, LVAL_ERR, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR };
@@ -193,6 +193,7 @@ void lval_println(lval* v) { lval_print(v); putchar('\n'); }
 
 /* EVALUATION */
 lval* lval_eval(lval* v);
+lval* lval_join(lval* x, lval* y);
 
 lval* lval_pop(lval* v, int i) {
   /* Find the item at "i" */
@@ -219,7 +220,7 @@ lval* builtin_head(lval* a) {
   /* Check Error Conditions */
   LASSERT_ARGNUM(a, 1, "Function 'head' passed too many arguments!");
   LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'head' passed incorrect type!");
-  LASSERT_NONEMPTY(a, "Function 'head' passed {}!");
+  LASSERT_NONEMPTY(a, 0, "Function 'head' passed {}!");
 
   /* Otherwise take first argument */
   lval* v = lval_take(a, 0);
@@ -233,7 +234,7 @@ lval* builtin_tail(lval* a) {
   /* Check Error Conditions */
   LASSERT_ARGNUM(a, 1, "Function 'tail' passed too many arguments!");
   LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'tail' passed incorrect type!");
-  LASSERT_NONEMPTY(a, "Function 'tail' passed {}!");
+  LASSERT_NONEMPTY(a, 0, "Function 'tail' passed {}!");
 
   /* Take first argument */
   lval* v = lval_take(a, 0);
@@ -241,6 +242,21 @@ lval* builtin_tail(lval* a) {
   /* Delete first element and return */
   lval_del(lval_pop(v, 0));
   return v;
+}
+
+lval* builtin_cons(lval* a) {
+  LASSERT_ARGNUM(a, 2, "Function 'cons' requires 2 arguments!");
+  LASSERT(a, (a->cell[1]->type == LVAL_QEXPR), "Function 'cons' passed incorrect type!");
+  LASSERT_NONEMPTY(a, 1, "Function 'cons' passed {}!");
+
+  lval* val = lval_pop(a, 0);
+  lval* qexp = lval_take(a, 0);
+
+  lval* res = lval_qexpr();
+
+  lval_add(res, val);
+
+  return lval_join(res, qexp);
 }
 
 lval* builtin_list(lval* a) {
@@ -348,6 +364,7 @@ lval* builtin(lval* a, char* func) {
   if (strcmp("list", func) == 0) { return builtin_list(a); }
   if (strcmp("head", func) == 0) { return builtin_head(a); }
   if (strcmp("tail", func) == 0) { return builtin_tail(a); }
+  if (strcmp("cons", func) == 0) { return builtin_cons(a); }
   if (strcmp("join", func) == 0) { return builtin_join(a); }
   if (strcmp("eval", func) == 0) { return builtin_eval(a); }
   if (strstr("+-/*", func)) { return builtin_op(a, func); }
@@ -453,7 +470,7 @@ int main(int argc, char** argv) {
     integer  : /-?[0-9]+/ ;						\
     number   : <decimal> | <integer> ;					\
     opsymbol : '+' | '-' | '*' | '/' | '%' ;				\
-    opword   : \"add\" | \"sub\" | \"mul\" | \"div\" | \"mod\" | \"list\" | \"head\" | \"tail\" | \"join\" | \"eval\" ;	\
+    opword   : \"add\" | \"sub\" | \"mul\" | \"div\" | \"mod\" | \"list\" | \"head\" | \"tail\" | \"cons\" | \"len\" | \"init\" | \"join\" | \"eval\" ;	\
     symbol   : <opsymbol> | <opword> ;					\
     sexpr    : '(' <expr>* ')' ;					\
     qexpr    : '{' <expr>* '}' ;					\
