@@ -255,6 +255,13 @@ lval* builtin_cons(lval* a) {
   return lval_join(result, lval_take(a, 0));
 }
 
+lval* builtin_len(lval* a) {
+  LASSERT_ARGNUM(a, 1, "Too many arguments to function 'len'!");
+  LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'len' passed incorrect type!");
+
+  return lval_num(a->cell[0]->count);
+}
+
 lval* builtin_list(lval* a) {
   a->type = LVAL_QEXPR;
   return a;
@@ -364,6 +371,7 @@ lval* builtin(lval* a, char* func) {
   if (strcmp("join", func) == 0) { return builtin_join(a); }
   if (strcmp("eval", func) == 0) { return builtin_eval(a); }
   if (strstr("+-/*", func)) { return builtin_op(a, func); }
+  if (strcmp("len", func) == 0)  { return builtin_len(a); }
   lval_del(a);
   return lval_err("Unknown Function!");
 }
