@@ -262,6 +262,16 @@ lval* builtin_len(lval* a) {
   return lval_num(a->cell[0]->count);
 }
 
+lval* builtin_init(lval* a) {
+  LASSERT_ARGNUM(a, 1, "Function 'init' passed too many arguments!");
+  LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'init' passed incorrect type!");
+  LASSERT_NONEMPTY(a, 0, "Function 'init' passed {}!");
+  
+  lval_del(lval_pop(a->cell[0], a->cell[0]->count - 1));
+
+  return a->cell[0];
+}
+
 lval* builtin_list(lval* a) {
   a->type = LVAL_QEXPR;
   return a;
@@ -372,6 +382,7 @@ lval* builtin(lval* a, char* func) {
   if (strcmp("eval", func) == 0) { return builtin_eval(a); }
   if (strstr("+-/*", func)) { return builtin_op(a, func); }
   if (strcmp("len", func) == 0)  { return builtin_len(a); }
+  if (strcmp("init", func) == 0) { return builtin_init(a); }
   lval_del(a);
   return lval_err("Unknown Function!");
 }
