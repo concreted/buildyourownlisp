@@ -470,8 +470,6 @@ int main(int argc, char** argv) {
   mpc_parser_t* Number   = mpc_new("number");
   mpc_parser_t* Integer  = mpc_new("integer");
   mpc_parser_t* Decimal  = mpc_new("decimal");
-  mpc_parser_t* OpSymbol = mpc_new("opsymbol");
-  mpc_parser_t* OpWord   = mpc_new("opword");
   mpc_parser_t* Symbol   = mpc_new("symbol");
   mpc_parser_t* Sexpr    = mpc_new("sexpr");
   mpc_parser_t* Qexpr    = mpc_new("qexpr");
@@ -484,15 +482,13 @@ int main(int argc, char** argv) {
     decimal  : /-?[0-9]+\\.[0-9]+/ ;					\
     integer  : /-?[0-9]+/ ;						\
     number   : <decimal> | <integer> ;					\
-    opsymbol : '+' | '-' | '*' | '/' | '%' ;				\
-    opword   : \"add\" | \"sub\" | \"mul\" | \"div\" | \"mod\" | \"list\" | \"head\" | \"tail\" | \"cons\" | \"len\" | \"init\" | \"join\" | \"eval\" ;	\
-    symbol   : <opsymbol> | <opword> ;					\
+    symbol   : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ;			\
     sexpr    : '(' <expr>* ')' ;					\
     qexpr    : '{' <expr>* '}' ;					\
     expr     : <number> | <symbol> | <sexpr> | <qexpr>  ;		\
     lispy    : /^/ <expr>+ /$/ ;					\
   ",
-	    Decimal, Integer, Number, OpSymbol, OpWord, Symbol, Sexpr, Qexpr, Expr, Lispy);
+	    Decimal, Integer, Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
 
 
   /* Print Version and Exit Information */
@@ -533,7 +529,7 @@ int main(int argc, char** argv) {
   }
 
   /* Free parsers */
-  mpc_cleanup(10, Number, Integer, Decimal, OpSymbol, OpWord, Symbol, Sexpr, Qexpr, Expr, Lispy);
+  mpc_cleanup(8, Number, Integer, Decimal, Symbol, Sexpr, Qexpr, Expr, Lispy);
 
   return 0;
 }
