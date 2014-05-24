@@ -49,6 +49,8 @@ typedef struct lval {
 
 } lval;
 
+typedef lval*(*lbuiltin)(lenv*, lval*);
+
 /* lval_num constructor */
 lval* lval_num(double x) {
   lval* v = malloc(sizeof(lval));
