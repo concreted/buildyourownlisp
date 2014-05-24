@@ -34,8 +34,15 @@ void add_history(char* unused) {}
 #define LASSERT_NONEMPTY(args, argnum, err) if (args->cell[argnum]->count == 0) { lval_del(args); return lval_err(err); }
 
 /* Setup */
-enum { LVAL_INT, LVAL_DEC, LVAL_ERR, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR };
+enum { LVAL_INT, LVAL_DEC, LVAL_ERR, LVAL_SYM, LVAL_FUN, LVAL_SEXPR, LVAL_QEXPR };
 enum { LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM };
+
+struct lval;
+struct lenv;
+typedef struct lval lval;
+typedef struct lenv lenv;
+
+typedef lval*(*lbuiltin)(lenv*, lval*);
 
 typedef struct lval {
   int type;
@@ -43,13 +50,12 @@ typedef struct lval {
 
   char* err;
   char* sym;
+  lbuiltin fun;
   
   int count;
   struct lval** cell;
 
-} lval;
-
-typedef lval*(*lbuiltin)(lenv*, lval*);
+};
 
 /* lval_num constructor */
 lval* lval_num(double x) {
@@ -77,6 +83,13 @@ lval* lval_sym(char* s) {
   v->type = LVAL_SYM;
   v->sym = malloc(strlen(s) + 1);
   strcpy(v->sym, s);
+  return v;
+}
+
+lval* lval_fun(lbuiltin func) {
+  lval* v = malloc(sizeof(lval));
+  v->type = LVAL_FUN;
+  v->fun = func;
   return v;
 }
 
@@ -108,6 +121,8 @@ void lval_del(lval* v) {
   case LVAL_ERR: free(v->err); break;
   case LVAL_SYM: free(v->sym); break;
 
+  case LVAL_FUN: break;
+
     /* If Sexpr then delete all elements inside */
   case LVAL_QEXPR:
   case LVAL_SEXPR:
@@ -121,6 +136,34 @@ void lval_del(lval* v) {
 
   /* Finally free the memory allocated for the "lval" struct itself */
   free(v);
+}
+
+lval* lval_copy(lval* v) {  
+  lval* x = malloc(sizeof(lval));
+  x->type = v->type;
+  
+  switch (v->type) {
+    
+    /* Copy Functions and Numbers Directly */
+  case LVAL_FUN: x->fun = v->fun; break;
+  case LVAL_NUM: x->num = v->num; break;
+    
+    /* Copy Strings using malloc and strcpy */
+  case LVAL_ERR: x->err = malloc(strlen(v->err) + 1); strcpy(x->err, v->err); break;
+  case LVAL_SYM: x->sym = malloc(strlen(v->sym) + 1); strcpy(x->sym, v->sym); break;
+
+    /* Copy Lists by copying each sub-expression */
+  case LVAL_SEXPR:
+  case LVAL_QEXPR:
+    x->count = v->count;
+    x->cell = malloc(sizeof(lval*) * x->count);
+    for (int i = 0; i < x->count; i++) {
+      x->cell[i] = lval_copy(v->cell[i]);
+    }
+    break;
+  }
+  
+  return x;
 }
 
 lval* lval_add(lval* v, lval* x) {
@@ -186,6 +229,7 @@ void lval_print(lval* v) {
   case LVAL_DEC:   printf("%.2f", v->num); break;
   case LVAL_ERR:   printf("Error: %s", v->err); break;
   case LVAL_SYM:   printf("%s", v->sym); break;
+  case LVAL_FUN:   printf("<function>"); break;
   case LVAL_SEXPR: lval_expr_print(v, '(', ')'); break;
   case LVAL_QEXPR: lval_expr_print(v, '{', '}'); break;
   }
