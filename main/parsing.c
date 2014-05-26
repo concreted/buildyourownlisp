@@ -29,8 +29,8 @@ void add_history(char* unused) {}
 #endif
 
 /* Macros */
-#define LASSERT(args, cond, err) if (!(cond)) { lval_del(args); return lval_err(err); }
-#define LASSERT_ARGNUM(args, argnum, err) if (args->count != argnum) { lval_del(args); return lval_err(err); }
+#define LASSERT(args, cond, fmt, ...) if (!(cond)) { lval* err = lval_err(fmt, ##__VA_ARGS__); lval_del(args); return err; }
+#define LASSERT_ARGNUM(args, argnum, fmt, ...) if (args->count != argnum) { lval* err = lval_err(fmt, ##__VA_ARGS__); lval_del(args); return err; }
 #define LASSERT_NONEMPTY(args, argnum, err) if (args->cell[argnum]->count == 0) { lval_del(args); return lval_err(err); }
 
 /* Setup */
@@ -77,11 +77,21 @@ lval* lval_num(double x) {
 }
 
 /* lval_err constructor */
-lval* lval_err(char* m) {
+lval* lval_err(char* fmt, ...) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_ERR;
-  v->err = malloc(strlen(m) + 1);
-  strcpy(v->err, m);
+
+  va_list va;
+  va_start(va, fmt);
+
+  v->err = malloc(512);
+
+  vsnprintf(v->err, 511, fmt, va);
+
+  v->err = realloc(v->err, strlen(v->err) + 1);
+
+  va_end(va);
+
   return v;
 }
 
@@ -300,7 +310,7 @@ lval* lenv_get(lenv* e, lval* k) {
     if (strcmp(e->syms[i], k->sym) == 0) { return lval_copy(e->vals[i]); }
   }
   /* If no symbol found return error */
-  return lval_err("unbound symbol!");
+  return lval_err("Unbound symbol '%s'", k->sym);
 }
 
 void lenv_put(lenv* e, lval* k, lval* v) {
@@ -333,7 +343,7 @@ void lenv_put(lenv* e, lval* k, lval* v) {
 
 lval* builtin_head(lenv* e, lval* a) {
   /* Check Error Conditions */
-  LASSERT_ARGNUM(a, 1, "Function 'head' passed too many arguments!");
+  LASSERT_ARGNUM(a, 1, "Function 'head' passed too many arguments! Got %i, expected %i.", a->count, 1);
   LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'head' passed incorrect type!");
   LASSERT_NONEMPTY(a, 0, "Function 'head' passed {}!");
 
