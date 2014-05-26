@@ -402,7 +402,6 @@ lval* builtin_eval(lenv* e, lval* a) {
 }
 
 lval* lval_join(lval* x, lval* y) {
-
   /* For each cell in 'y' add it to 'x' */
   while (y->count) {
     x = lval_add(x, lval_pop(y, 0));
@@ -414,7 +413,6 @@ lval* lval_join(lval* x, lval* y) {
 }
 
 lval* builtin_join(lenv* e, lval* a) {
-
   for (int i = 0; i < a->count; i++) {
     LASSERT(a, (a->cell[i]->type == LVAL_QEXPR), "Function 'join' passed incorrect type.");
   }
@@ -488,10 +486,34 @@ lval* builtin_op(lenv* e, lval* a, char* op) {
   return x;
 }
 
+lval* builtin_def(lenv* e, lval* a) {
+  LASSERT(a, (a->cell[0]->type == LVAL_QEXPR), "Function 'def' passed incorrect type!");
+
+  /* First argument is symbol list */
+  lval* syms = a->cell[0];
+
+  /* Ensure all elements of first list are symbols */
+  for (int i = 0; i < syms->count; i++) {
+    LASSERT(a, (syms->cell[i]->type == LVAL_SYM), "Function 'def' cannot define non-symbol");
+  }
+  
+  /* Check correct number of symbols and values */
+  LASSERT(a, (syms->count == a->count-1), "Function 'def' cannot define incorrect number of values to symbols");
+
+  /* Assign copies of values to symbols */
+  for (int i = 0; i < syms->count; i++) {
+    lenv_put(e, syms->cell[i], a->cell[i+1]);
+  }
+
+  lval_del(a);
+  return lval_sexpr();
+}
+
 lval* builtin_add(lenv* e, lval* a) { return builtin_op(e, a, "+"); }
 lval* builtin_sub(lenv* e, lval* a) { return builtin_op(e, a, "-"); }
 lval* builtin_mul(lenv* e, lval* a) { return builtin_op(e, a, "*"); }
 lval* builtin_div(lenv* e, lval* a) { return builtin_op(e, a, "/"); }
+lval* builtin_mod(lenv* e, lval* a) { return builtin_op(e, a, "%"); }
 
 void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
   lval* k = lval_sym(name);
@@ -502,30 +524,18 @@ void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
 
 void lenv_add_builtins(lenv* e) {  
   /* List Functions */
-  lenv_add_builtin(e, "list", builtin_list);
-  lenv_add_builtin(e, "head", builtin_head); lenv_add_builtin(e, "tail",  builtin_tail);
-  lenv_add_builtin(e, "eval", builtin_eval); lenv_add_builtin(e, "join",  builtin_join);
+  lenv_add_builtin(e, "list", builtin_list); lenv_add_builtin(e, "cons", builtin_cons);
+  lenv_add_builtin(e, "head", builtin_head); lenv_add_builtin(e, "tail", builtin_tail);
+  lenv_add_builtin(e, "eval", builtin_eval); lenv_add_builtin(e, "join", builtin_join);
+  lenv_add_builtin(e, "len", builtin_len);   lenv_add_builtin(e, "init", builtin_init);
 
   /* Mathematical Functions */
   lenv_add_builtin(e, "+",    builtin_add); lenv_add_builtin(e, "-",     builtin_sub);
   lenv_add_builtin(e, "*",    builtin_mul); lenv_add_builtin(e, "/",     builtin_div);
-}
+  lenv_add_builtin(e, "%",    builtin_mod);
 
-/*
-lval* builtin(lval* a, char* func) {
-  if (strcmp("list", func) == 0) { return builtin_list(a); }
-  if (strcmp("head", func) == 0) { return builtin_head(a); }
-  if (strcmp("tail", func) == 0) { return builtin_tail(a); }
-  if (strcmp("cons", func) == 0) { return builtin_cons(a); }
-  if (strcmp("join", func) == 0) { return builtin_join(a); }
-  if (strcmp("eval", func) == 0) { return builtin_eval(a); }
-  if (strstr("+-/*", func)) { return builtin_op(a, func); }
-  if (strcmp("len", func) == 0)  { return builtin_len(a); }
-  if (strcmp("init", func) == 0) { return builtin_init(a); }
-  lval_del(a);
-  return lval_err("Unknown Function!");
+  lenv_add_builtin(e, "def", builtin_def);
 }
-*/
 
 lval* lval_eval_sexpr(lenv* e, lval* v) {
 
@@ -629,7 +639,7 @@ int main(int argc, char** argv) {
     decimal  : /-?[0-9]+\\.[0-9]+/ ;					\
     integer  : /-?[0-9]+/ ;						\
     number   : <decimal> | <integer> ;					\
-    symbol   : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ;			\
+    symbol   : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&%]+/ ;			\
     sexpr    : '(' <expr>* ')' ;					\
     qexpr    : '{' <expr>* '}' ;					\
     expr     : <number> | <symbol> | <sexpr> | <qexpr>  ;		\
