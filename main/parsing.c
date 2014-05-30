@@ -540,6 +540,14 @@ lval* builtin_mul(lenv* e, lval* a) { return builtin_op(e, a, "*"); }
 lval* builtin_div(lenv* e, lval* a) { return builtin_op(e, a, "/"); }
 lval* builtin_mod(lenv* e, lval* a) { return builtin_op(e, a, "%"); }
 
+lval* builtin_vars(lenv* e, lval* a) {
+  for (int i = 0; i < e->count; i++) {
+    printf("%s\n", e->syms[i]);
+      //if (strcmp(e->syms[i], k->sym) == 0) { return lval_copy(e->vals[i]); }
+  }
+  return a;
+}
+
 void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
   lval* k = lval_sym(name);
   lval* v = lval_fun(name, func);
@@ -552,14 +560,15 @@ void lenv_add_builtins(lenv* e) {
   lenv_add_builtin(e, "list", builtin_list); lenv_add_builtin(e, "cons", builtin_cons);
   lenv_add_builtin(e, "head", builtin_head); lenv_add_builtin(e, "tail", builtin_tail);
   lenv_add_builtin(e, "eval", builtin_eval); lenv_add_builtin(e, "join", builtin_join);
-  lenv_add_builtin(e, "len", builtin_len);   lenv_add_builtin(e, "init", builtin_init);
+  lenv_add_builtin(e, "len",  builtin_len);  lenv_add_builtin(e, "init", builtin_init);
 
   /* Mathematical Functions */
   lenv_add_builtin(e, "+",    builtin_add); lenv_add_builtin(e, "-",     builtin_sub);
   lenv_add_builtin(e, "*",    builtin_mul); lenv_add_builtin(e, "/",     builtin_div);
   lenv_add_builtin(e, "%",    builtin_mod);
 
-  lenv_add_builtin(e, "def", builtin_def);
+  lenv_add_builtin(e, "def",  builtin_def);
+  lenv_add_builtin(e, "vars", builtin_vars);
 }
 
 lval* lval_eval_sexpr(lenv* e, lval* v) {
@@ -693,7 +702,7 @@ int main(int argc, char** argv) {
     if (mpc_parse("<stdin>", input, Lispy, &r)) {
       /* On Success Print the AST */
       
-      mpc_ast_print(r.output);
+      //mpc_ast_print(r.output);
 
       lval* x = lval_eval(e, lval_read(r.output));
       lval_println(x);
