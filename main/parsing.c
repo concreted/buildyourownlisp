@@ -68,13 +68,15 @@ struct lval {
   
   int count;
   struct lval** cell;
-
 };
 
 struct lenv {
   int count;
   char** syms;
   lval** vals;
+
+  int count_reserved;
+  char** reserved;
 };
 
 /* lval Helper functions */
@@ -303,6 +305,9 @@ lenv* lenv_new(void) {
   e->count = 0;
   e->syms = NULL;
   e->vals = NULL;
+
+  e->count_reserved = 0;
+  e->reserved = NULL;
   return e;
 }
 
@@ -313,7 +318,13 @@ void lenv_del(lenv* e) {
   }
   free(e->syms);
   free(e->vals);
-  free(e);
+
+  for (int i = 0; i < e->count_reserved; i++) {
+    free(e->reserved[i]);
+  }
+  free(e->reserved);
+
+  free(e);  
 }
 
 lval* lenv_get(lenv* e, lval* k) {
@@ -328,8 +339,17 @@ lval* lenv_get(lenv* e, lval* k) {
   return lval_err("Unbound symbol '%s'", k->sym);
 }
 
-void lenv_put(lenv* e, lval* k, lval* v) {
+int lenv_sym_reserved(lenv* e, lval* s) {
+  for (int i = 0; i < e->count_reserved; i++) {
+    if (strcmp(e->reserved[i], s->sym) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
 
+void lenv_put(lenv* e, lval* k, lval* v) {
+  
   /* Iterate over all items in environment */
   /* This is to see if variable already exists */
   for (int i = 0; i < e->count; i++) {
@@ -352,6 +372,17 @@ void lenv_put(lenv* e, lval* k, lval* v) {
   e->vals[e->count-1] = lval_copy(v);
   e->syms[e->count-1] = malloc(strlen(k->sym)+1);
   strcpy(e->syms[e->count-1], k->sym);
+}
+
+void lenv_put_reserved(lenv* e, lval* k, lval* v) { 
+  lenv_put(e, k, v);
+  
+  if (!lenv_sym_reserved(e, k)) {
+    e->count_reserved++;
+    e->reserved = realloc(e->reserved, sizeof(char*) * e->count_reserved);
+    e->reserved[e->count_reserved - 1] = malloc(strlen(k->sym) + 1);
+    strcpy(e->reserved[e->count_reserved - 1], k->sym);
+  }
 }
 
 /* Builtin functions */
@@ -520,6 +551,7 @@ lval* builtin_def(lenv* e, lval* a) {
   /* Ensure all elements of first list are symbols */
   for (int i = 0; i < syms->count; i++) {
     LASSERT(a, (syms->cell[i]->type == LVAL_SYM), "Function 'def' cannot define non-symbol");
+    LASSERT(a, (!lenv_sym_reserved(e, syms->cell[i])), "Function 'def' cannot redefine reserved symbol");
   }
   
   /* Check correct number of symbols and values */
@@ -543,7 +575,13 @@ lval* builtin_mod(lenv* e, lval* a) { return builtin_op(e, a, "%"); }
 lval* builtin_vars(lenv* e, lval* a) {
   for (int i = 0; i < e->count; i++) {
     printf("%s\n", e->syms[i]);
-      //if (strcmp(e->syms[i], k->sym) == 0) { return lval_copy(e->vals[i]); }
+  }
+  return a;
+}
+
+lval* builtin_reserved(lenv* e, lval* a) {
+  for (int i = 0; i < e->count_reserved; i++) {
+    printf("%s\n", e->reserved[i]);
   }
   return a;
 }
@@ -551,7 +589,7 @@ lval* builtin_vars(lenv* e, lval* a) {
 void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
   lval* k = lval_sym(name);
   lval* v = lval_fun(name, func);
-  lenv_put(e, k, v);
+  lenv_put_reserved(e, k, v);
   lval_del(k); lval_del(v);
 }
 
@@ -569,6 +607,7 @@ void lenv_add_builtins(lenv* e) {
 
   lenv_add_builtin(e, "def",  builtin_def);
   lenv_add_builtin(e, "vars", builtin_vars);
+  lenv_add_builtin(e, "reserved", builtin_reserved);
 }
 
 lval* lval_eval_sexpr(lenv* e, lval* v) {
