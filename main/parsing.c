@@ -120,11 +120,12 @@ lval* lval_sym(char* s) {
   return v;
 }
 
-lval* lval_fun(char* name, lbuiltin func) {
+lval* lval_fun(char* name, int argcount, lbuiltin func) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_FUN;
   v->fun = func;
   v->sym = name;
+  v->count = argcount;
   return v;
 }
 
@@ -180,7 +181,7 @@ lval* lval_copy(lval* v) {
   switch (v->type) {
     
     /* Copy Functions and Numbers Directly */
-  case LVAL_FUN: x->fun = v->fun; x->sym = v->sym; break;
+  case LVAL_FUN: x->fun = v->fun; x->sym = v->sym; x->count = v->count; break;
   case LVAL_INT: 
   case LVAL_DEC:
     x->num = v->num; break;
@@ -586,28 +587,28 @@ lval* builtin_reserved(lenv* e, lval* a) {
   return a;
 }
 
-void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
+void lenv_add_builtin(lenv* e, char* name, int argcount, lbuiltin func) {
   lval* k = lval_sym(name);
-  lval* v = lval_fun(name, func);
+  lval* v = lval_fun(name, argcount, func);
   lenv_put_reserved(e, k, v);
   lval_del(k); lval_del(v);
 }
 
 void lenv_add_builtins(lenv* e) {  
   /* List Functions */
-  lenv_add_builtin(e, "list", builtin_list); lenv_add_builtin(e, "cons", builtin_cons);
-  lenv_add_builtin(e, "head", builtin_head); lenv_add_builtin(e, "tail", builtin_tail);
-  lenv_add_builtin(e, "eval", builtin_eval); lenv_add_builtin(e, "join", builtin_join);
-  lenv_add_builtin(e, "len",  builtin_len);  lenv_add_builtin(e, "init", builtin_init);
+  lenv_add_builtin(e, "list", -1, builtin_list); lenv_add_builtin(e, "cons", -1, builtin_cons);
+  lenv_add_builtin(e, "head",  1, builtin_head); lenv_add_builtin(e, "tail",  1, builtin_tail);
+  lenv_add_builtin(e, "eval", -1, builtin_eval); lenv_add_builtin(e, "join", -1, builtin_join);
+  lenv_add_builtin(e, "len",  -1, builtin_len);  lenv_add_builtin(e, "init", -1, builtin_init);
 
   /* Mathematical Functions */
-  lenv_add_builtin(e, "+",    builtin_add); lenv_add_builtin(e, "-",     builtin_sub);
-  lenv_add_builtin(e, "*",    builtin_mul); lenv_add_builtin(e, "/",     builtin_div);
-  lenv_add_builtin(e, "%",    builtin_mod);
+  lenv_add_builtin(e, "+", -1, builtin_add); lenv_add_builtin(e, "-", -1, builtin_sub);
+  lenv_add_builtin(e, "*", -1, builtin_mul); lenv_add_builtin(e, "/", -1, builtin_div);
+  lenv_add_builtin(e, "%", -1, builtin_mod);
 
-  lenv_add_builtin(e, "def",  builtin_def);
-  lenv_add_builtin(e, "vars", builtin_vars);
-  lenv_add_builtin(e, "reserved", builtin_reserved);
+  lenv_add_builtin(e, "def",     -1, builtin_def);
+  lenv_add_builtin(e, "vars",     0, builtin_vars);
+  lenv_add_builtin(e, "reserved", 0, builtin_reserved);
 }
 
 lval* lval_eval_sexpr(lenv* e, lval* v) {
@@ -645,12 +646,20 @@ lval* lval_eval(lenv* e, lval* v) {
   /* Evaluate symbols using environment */
   if (v->type == LVAL_SYM) {
     lval* x = lenv_get(e, v);
+
+    /* Evaluate functions taking no arguments*/
+    if ((x->type == LVAL_FUN) && (x->count == 0)) {
+	x->fun(e,x);
+    }
+
     lval_del(v);
+
     return x;
   }
 
   /* Evaluate Sexpressions */
   if (v->type == LVAL_SEXPR) { return lval_eval_sexpr(e, v); }
+
   /* All other lval types remain the same */
   return v;
 }
