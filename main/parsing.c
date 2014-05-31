@@ -587,6 +587,11 @@ lval* builtin_reserved(lenv* e, lval* a) {
   return a;
 }
 
+lval* builtin_exit(lenv* e, lval* a) {
+  printf("Exiting\n");
+  return a;
+}
+
 void lenv_add_builtin(lenv* e, char* name, int argcount, lbuiltin func) {
   lval* k = lval_sym(name);
   lval* v = lval_fun(name, argcount, func);
@@ -609,6 +614,7 @@ void lenv_add_builtins(lenv* e) {
   lenv_add_builtin(e, "def",     -1, builtin_def);
   lenv_add_builtin(e, "vars",     0, builtin_vars);
   lenv_add_builtin(e, "reserved", 0, builtin_reserved);
+  lenv_add_builtin(e, "exit",     0, builtin_exit);
 }
 
 lval* lval_eval_sexpr(lenv* e, lval* v) {
@@ -732,13 +738,14 @@ int main(int argc, char** argv) {
 
   /* Print Version and Exit Information */
   puts("Lispy Version 0.0.0.0.1");
-  puts("Press Ctrl+c to Exit\n");
+  puts("Type exit or press Ctrl+c to Exit\n");
 
   lenv* e = lenv_new();
   lenv_add_builtins(e);
 
   /* In a never ending loop */
-  while (1) {
+  int exit = 0;
+  while (!exit) {
 
     /* Output our prompt and get input*/
     char* input = readline("lispy> ");
@@ -753,6 +760,10 @@ int main(int argc, char** argv) {
       //mpc_ast_print(r.output);
 
       lval* x = lval_eval(e, lval_read(r.output));
+
+      if (strcmp(x->sym, "exit") == 0) 
+	exit = 1;
+
       lval_println(x);
       lval_del(x);
 
